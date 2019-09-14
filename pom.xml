@@ -76,7 +76,7 @@
     </build>
     <repositories>
         <repository>
-            <id>central</id>
+            <id>central1</id>
             <name>Maven2 Central Repository</name>
             <layout>default</layout>
             <url>http://repo1.maven.org/maven2</url>
@@ -84,7 +84,7 @@
     </repositories>
     <pluginRepositories>
         <pluginRepository>
-            <id>central</id>
+            <id>central1</id>
             <url>http://repo1.maven.org/maven2</url>
         </pluginRepository>
     </pluginRepositories>
