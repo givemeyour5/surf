@@ -6,8 +6,10 @@ import java.nio.ByteBuffer;
 import java.nio.channels.AsynchronousSocketChannel;
 import java.nio.channels.Channel;
 import java.nio.channels.CompletionHandler;
+import java.sql.BatchUpdateException;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 
 
 /**
@@ -16,6 +18,8 @@ import java.util.concurrent.ExecutionException;
 public class ChannelHelper {
 
     public final static int HEAD_SIZE = 4;
+    public final static int SESSION_SIZE = 4;
+    private final static int BATCH_SIZE = 1024;
 
     public static void read(final AsynchronousSocketChannel channel, final ByteBuffer buffer) throws ExecutionException, InterruptedException {
 
@@ -136,6 +140,7 @@ public class ChannelHelper {
         }
     }
 
+
     public static void write(final AsynchronousSocketChannel channel, final ByteBuffer data, final Callable callback) throws ExecutionException, InterruptedException {
 
         if(data == null) {
@@ -203,6 +208,96 @@ public class ChannelHelper {
 
 
 
+    }
+
+
+    public static void multiplexedWrite(final int sessionId, final AsynchronousSocketChannel channel, final byte[] data) throws ExecutionException, InterruptedException {
+
+        if(data == null) {
+            throw new NullPointerException("data can't be null");
+        }
+        int size = data.length;
+        int leftSize = size % BATCH_SIZE;
+        int batch = size / BATCH_SIZE;
+        int i = 0;
+        ByteBuffer byteSessionId = ByteBuffer.wrap(ByteConvert.toBytes(sessionId));
+        if(batch > 0) {
+            ByteBuffer byteSize = ByteBuffer.wrap(ByteConvert.toBytes(BATCH_SIZE));
+            int lastBatch = batch - 1;
+            for(; i < batch; ++i) {
+                if(i == lastBatch && leftSize == 0) {
+                    byteSessionId = ByteBuffer.wrap(ByteConvert.toBytes(-sessionId));
+                }
+                else {
+                    byteSessionId.flip();
+                }
+                byteSize.flip();
+                synchronized (channel) {
+                    while (byteSessionId.hasRemaining()) {
+                        channel.write(byteSessionId);
+                    }
+                    while (byteSize.hasRemaining()) {
+                        channel.write(byteSize);
+                    }
+                    ByteBuffer batchData = ByteBuffer.wrap(data, i * BATCH_SIZE, BATCH_SIZE);
+                    while (batchData.hasRemaining()) {
+                        channel.write(batchData);
+                    }
+                }
+            }
+        }
+        //write left data
+        if(leftSize > 0) {
+            byteSessionId = ByteBuffer.wrap(ByteConvert.toBytes(-sessionId));
+            synchronized (channel) {
+                while (byteSessionId.hasRemaining()) {
+                    channel.write(byteSessionId);
+                }
+                ByteBuffer byteSize = ByteBuffer.wrap(ByteConvert.toBytes(leftSize));
+                while (byteSize.hasRemaining()) {
+                    channel.write(byteSize);
+                }
+                ByteBuffer batchData = ByteBuffer.wrap(data, i * BATCH_SIZE, leftSize);
+                while (batchData.hasRemaining()) {
+                    channel.write(batchData);
+                }
+            }
+        }
+
+
+    }
+
+    public static int readSessionId(final AsynchronousSocketChannel channel, final ByteBuffer sessionBuffer) throws ExecutionException, InterruptedException {
+        if(sessionBuffer == null){
+            throw new NullPointerException("buffer can't be null");
+        }
+        while (sessionBuffer.position() < ChannelHelper.SESSION_SIZE) {
+            channel.read(sessionBuffer).get();
+        }
+        int sessionId = ByteConvert.toInt32(sessionBuffer.array());
+        sessionBuffer.flip();
+        return sessionId;
+    }
+
+    public static void multiplexedRead(final AsynchronousSocketChannel channel, final ByteBuffer headBuffer, final ByteBuffer dataBuffer) throws ExecutionException, InterruptedException {
+
+        if(headBuffer == null || dataBuffer == null){
+            throw new NullPointerException("buffer can't be null");
+        }
+
+        while (headBuffer.position() < ChannelHelper.HEAD_SIZE) {
+            channel.read(headBuffer).get();
+        }
+        int size = ByteConvert.toInt32(headBuffer.array());
+        headBuffer.flip();
+
+        if(size > dataBuffer.remaining()) {
+            throw new BufferOverflowException();
+        }
+        int pos = dataBuffer.position();
+        while(size > (dataBuffer.position() - pos)) {
+            channel.read(dataBuffer).get();
+        }
     }
 
 

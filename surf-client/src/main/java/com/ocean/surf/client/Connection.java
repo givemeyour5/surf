@@ -153,6 +153,11 @@ public class Connection implements IConnection {
         }
     }
 
+    @Override
+    public ByteBuffer writeAndRead2(byte[] data) throws Exception {
+        return null;
+    }
+
 //    private byte[] doWriteAndRead(final byte[] data, long timeout, TimeUnit unit) throws Exception {
 //        Future<byte[]> future = WORKER.submit(new Callable<byte[]>() {
 //            @Override

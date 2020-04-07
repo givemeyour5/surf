@@ -18,12 +18,13 @@ public class SoaClientTest {
     @Test
     public void test() throws Exception {
         ClientConfig config = new ClientConfig();
-        config.setPoolSize(4);
+        config.setPoolSize(1);
         config.setAddress("127.0.0.1");
         config.setServerPort(30000);
         config.setBufferSize(1024*1024);
-        config.setTimeoutMilliseconds(1000);
-        final ISoaService client = SoaClientFactory.Create(ISoaService.class, config);
+        config.setTimeoutMilliseconds(60000);
+//        final ISoaService client = SoaClientFactory.Create(ISoaService.class, config);
+        final ISoaService client = SoaClientFactory.CreateMultiplexed(ISoaService.class, config);
 
 
         final AtomicInteger count = new AtomicInteger(0);
@@ -49,6 +50,12 @@ public class SoaClientTest {
         Map<Integer, Object> tmp = new HashMap<>();
         tmp.put(1, 1);
         p2.put("a", tmp);
+        p2.put("b", tmp);
+        Map dd = new HashMap<String, Object>();
+        dd.put("aaaa","dfdfdfd");
+        dd.put("bbb","dfdfdfd");
+        dd.put("ccccc","dfdfdfd");
+        p2.put("c", dd);
 
         final Thread thread1 = new Thread(new Runnable() {
             @Override
@@ -69,11 +76,11 @@ public class SoaClientTest {
         final Thread thread2 = new Thread(new Runnable() {
             @Override
             public void run() {
-                int index = 0;
+                int index = 90;
                 while (true) {
                     int ret = client.call(index, p2);
                     Assert.assertEquals(index+1, ret);
-                    ++index;
+//                    ++index;
                     count.incrementAndGet();
 //            System.out.println(String.format("old: %d,  new: %d", index++, ret));
                 }

@@ -15,5 +15,6 @@ public interface IConnection {
     void close() throws IOException;
 
     byte[] writeAndRead(byte[] data) throws Exception;
+    ByteBuffer writeAndRead2(byte[] data) throws Exception;
 //    byte[] writeAndRead(byte[] data, long timeout, TimeUnit unit) throws InterruptedException, ExecutionException, IOException, TimeoutException;
 }

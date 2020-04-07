@@ -86,6 +86,21 @@ public class Client extends AbstractClient {
         ChannelHelper.write(channel, wb, callable);
     }
 
+    @Override
+    public void multiplexedWrite(int sessionId, byte[] data) throws ExecutionException, InterruptedException {
+        ChannelHelper.multiplexedWrite(sessionId, channel, data);
+    }
+
+    @Override
+    public int readSessionId(ByteBuffer sessionBuffer) throws ExecutionException, InterruptedException {
+        return ChannelHelper.readSessionId(channel, sessionBuffer);
+    }
+
+    @Override
+    public void multiplexedRead(ByteBuffer headBuffer, ByteBuffer dataBuffer) throws ExecutionException, InterruptedException, IOException {
+        ChannelHelper.multiplexedRead(channel, headBuffer, dataBuffer);
+    }
+
     public ByteBuffer getBuffer() {
         return this.buffer;
     }

@@ -15,4 +15,7 @@ public interface IClient {
     ByteBuffer read(Callable callable) throws ExecutionException, InterruptedException, IOException;
     void write(byte[] data) throws ExecutionException, InterruptedException;
     void write(byte[] data, Callable callable) throws ExecutionException, InterruptedException;
+    void multiplexedWrite(int sessionId, byte[] data) throws ExecutionException, InterruptedException;
+    int readSessionId(final ByteBuffer sessionBuffer) throws ExecutionException, InterruptedException;
+    void multiplexedRead(final ByteBuffer headBuffer, final ByteBuffer dataBuffer) throws ExecutionException, InterruptedException, IOException;
 }
