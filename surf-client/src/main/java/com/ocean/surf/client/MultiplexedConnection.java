@@ -9,6 +9,7 @@ import java.nio.ByteBuffer;
 import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Created by David on 2020/4/5.
@@ -22,6 +23,8 @@ public class MultiplexedConnection implements IConnection {
     private final long timeout;
     private final Thread readThread;
     private IClient client;
+    private AtomicInteger sessionSeed;
+    private Integer maxSessionId;
 
     public MultiplexedConnection(String serverAddress, int serverPort, int bufferSize, long timeoutMilliseconds) throws IOException, ExecutionException, InterruptedException {
         this.serverAddress = serverAddress;
@@ -43,7 +46,9 @@ public class MultiplexedConnection implements IConnection {
     @Override
     public void connect() throws ExecutionException, InterruptedException, IOException {
         client = Client.open(serverAddress, serverPort, bufferSize);
-        client.connect();
+        int seed = client.connect();
+        sessionSeed = new AtomicInteger(seed);
+        maxSessionId = seed + ChannelHelper.SESSION_AMOUNT_PER_CONN;
         readThread.start();
     }
 
@@ -53,7 +58,7 @@ public class MultiplexedConnection implements IConnection {
     }
 
     @Override
-    public byte[] writeAndRead(byte[] data) throws Exception {
+    public byte[] writeAndRead(byte[] data) {
         return null;
     }
 
@@ -62,13 +67,22 @@ public class MultiplexedConnection implements IConnection {
         long tid = Thread.currentThread().getId();
         ConnectionContext context = pool.get(tid);
         if(context == null) {
-            context = new ConnectionContext(Math.abs(new Random(System.currentTimeMillis()).nextInt()), bufferSize);
+
+            context = new ConnectionContext(generateSession(), bufferSize);
             pool.put(tid, context);
             sessionPool.put(context.sessionId, context);
         }
         client.multiplexedWrite(context.sessionId, data);
         context.available.acquire();
         return context.buffer;
+    }
+
+    private int generateSession() {
+        int sessionId = sessionSeed.getAndIncrement();
+        if(sessionId >= maxSessionId) {
+            throw new RuntimeException("too many thread to this connection");
+        }
+        return sessionId;
     }
 
     private void read() throws ExecutionException, InterruptedException, IOException {

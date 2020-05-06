@@ -43,10 +43,13 @@ public class Client extends AbstractClient {
 
 
     @Override
-    public void connect() throws ExecutionException, InterruptedException, IOException {
+    public int connect() throws ExecutionException, InterruptedException, IOException {
         channel.connect(remoteAddress).get();
+        ByteBuffer sessionBuffer = ByteBuffer.allocate(ChannelHelper.SESSION_SIZE);
+        int sessionSeed = readSessionId(sessionBuffer);
         ByteBuffer receive = read();
         System.out.println(new String(receive.array(), receive.position(), receive.remaining()));
+        return sessionSeed;
     }
 
     @Override
@@ -104,6 +107,5 @@ public class Client extends AbstractClient {
     public ByteBuffer getBuffer() {
         return this.buffer;
     }
-
 
 }

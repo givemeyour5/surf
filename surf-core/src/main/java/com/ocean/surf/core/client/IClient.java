@@ -9,7 +9,7 @@ import java.util.concurrent.ExecutionException;
  * Created by david on 17/5/8.
  */
 public interface IClient {
-    void connect() throws ExecutionException, InterruptedException, IOException;
+    int connect() throws ExecutionException, InterruptedException, IOException;
     void close() throws  IOException;
     ByteBuffer read() throws ExecutionException, InterruptedException, IOException;
     ByteBuffer read(Callable callable) throws ExecutionException, InterruptedException, IOException;

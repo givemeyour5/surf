@@ -4,25 +4,32 @@ import com.ocean.surf.core.util.ChannelHelper;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.net.SocketAddress;
 import java.nio.ByteBuffer;
 import java.nio.channels.AsynchronousChannelGroup;
 import java.nio.channels.AsynchronousServerSocketChannel;
 import java.nio.channels.AsynchronousSocketChannel;
 import java.nio.channels.CompletionHandler;
 import java.util.Map;
+import java.util.Queue;
 import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Created by David on 2020/4/5.
  */
 public class MultiplexedServer extends AbstractServer {
-    private AsynchronousServerSocketChannel channel;
+    private AsynchronousServerSocketChannel serverChannel;
     private int bufferSize = 1024 * 1024;
     private int port = 30000;
     private int threadCount = 8;
     private int queueSize = 20000;
     private final Map<Integer, ByteBuffer> sessionPool = new ConcurrentHashMap<>();
     private final Executor executor = new ThreadPoolExecutor(threadCount, threadCount, 1, TimeUnit.MINUTES, new ArrayBlockingQueue<Runnable>(queueSize));
+    private final AtomicInteger sessionSeed = new AtomicInteger(1);
+    private final Queue<Integer> sessionSeedRecycle = new ConcurrentLinkedQueue<>();
+    private final Map<SocketAddress, Integer> connSessionSeeds = new ConcurrentHashMap<>();
+
 
     protected MultiplexedServer() throws IOException {
     }
@@ -37,12 +44,12 @@ public class MultiplexedServer extends AbstractServer {
     private void init() throws IOException {
         super.address = new InetSocketAddress(port);
         this.bufferSize += ChannelHelper.HEAD_SIZE;
-        channel = AsynchronousServerSocketChannel.open(AsynchronousChannelGroup.withThreadPool(
+        serverChannel = AsynchronousServerSocketChannel.open(AsynchronousChannelGroup.withThreadPool(
                 new ThreadPoolExecutor(1, 1, 1, TimeUnit.MINUTES, new ArrayBlockingQueue<Runnable>(queueSize))
         ));
         //        channel.setOption(StandardSocketOptions.SO_RCVBUF, 1024 * 1024);
         //        channel.setOption(StandardSocketOptions.SO_RCVBUF, 1024 * 1024);
-        channel.bind(address);
+        serverChannel.bind(address);
     }
 
     public void setPort(int port) { this.port = port; }
@@ -59,24 +66,20 @@ public class MultiplexedServer extends AbstractServer {
         init();
         System.out.println("server start...");
         System.out.println("bind address: " + address);
-        channel.accept(null, new CompletionHandler<AsynchronousSocketChannel, Object>() {
+        serverChannel.accept(null, new CompletionHandler<AsynchronousSocketChannel, Object>() {
             @Override
-            public void completed(AsynchronousSocketChannel result, Object attachment) {
-                channel.accept(null, this);
+            public void completed(AsynchronousSocketChannel channel, Object attachment) {
+                serverChannel.accept(null, this);
                 ByteBuffer wb = ByteBuffer.wrap("server connected!".getBytes());
                 try {
-                    ChannelHelper.write(result, wb);
-                    handle(result);
-                } catch (ExecutionException e) {
+                    ChannelHelper.writeSession(channel, generateSessionSeed(channel.getRemoteAddress()));
+                    ChannelHelper.write(channel, wb);
+                    handle(channel);
+                } catch (Exception e) {
                     e.printStackTrace();
-                    ChannelHelper.close(channel);
-                    return;
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
-                    ChannelHelper.close(channel);
+                    ChannelHelper.close(serverChannel);
                     return;
                 }
-
             }
 
             @Override
@@ -87,14 +90,34 @@ public class MultiplexedServer extends AbstractServer {
         });
     }
 
+    private int generateSessionSeed(SocketAddress clientAddress) {
+        int seed = 0;
+        if(sessionSeedRecycle.size() > 0) {
+            seed = sessionSeedRecycle.poll();
+        }
+        else {
+            seed = sessionSeed.getAndAdd(ChannelHelper.SESSION_AMOUNT_PER_CONN);
+        }
+        connSessionSeeds.put(clientAddress, seed);
+        return seed;
+    }
 
+    private void clearSession(SocketAddress clientAddress) {
+        //recycle sessions of this closed channel depends ip:port
+        Integer sessionSeed = connSessionSeeds.remove(clientAddress);
+        if(sessionSeed != null) {
+            int maxSessionId = sessionSeed + ChannelHelper.SESSION_AMOUNT_PER_CONN;
+            for(int session = sessionSeed; session < maxSessionId; ++session) {
+                sessionPool.remove(session);
+            }
+            sessionSeedRecycle.add(sessionSeed);
+        }
+    }
 
-    private void handle(final AsynchronousSocketChannel channel) throws ExecutionException, InterruptedException {
+    private void handle(final AsynchronousSocketChannel channel) {
 
         final ByteBuffer sessionBuffer = ByteBuffer.allocate(ChannelHelper.SESSION_SIZE);
         final ByteBuffer headBuffer = ByteBuffer.allocate(ChannelHelper.HEAD_SIZE);
-
-
 
         channel.read(sessionBuffer, null, new CompletionHandler<Integer, Object>() {
 
@@ -102,6 +125,11 @@ public class MultiplexedServer extends AbstractServer {
             public void completed(Integer result, Object attachment) {
                 if(result == -1) {
                     ChannelHelper.close(channel);
+                    try {
+                        clearSession(channel.getRemoteAddress());
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
                     return;
                 }
                 try {
@@ -159,7 +187,7 @@ public class MultiplexedServer extends AbstractServer {
 
     @Override
     public void shutdown() throws IOException {
-        ChannelHelper.close(channel);
+        ChannelHelper.close(serverChannel);
     }
 
     @Override
@@ -168,4 +196,5 @@ public class MultiplexedServer extends AbstractServer {
 //        System.out.println("received size : " + data.limit());
         return data;
     }
+
 }

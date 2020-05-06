@@ -19,6 +19,7 @@ public class ChannelHelper {
 
     public final static int HEAD_SIZE = 4;
     public final static int SESSION_SIZE = 4;
+    public final static int SESSION_AMOUNT_PER_CONN = 128;
     private final static int BATCH_SIZE = 1024;
 
     public static void read(final AsynchronousSocketChannel channel, final ByteBuffer buffer) throws ExecutionException, InterruptedException {
@@ -263,8 +264,13 @@ public class ChannelHelper {
                 }
             }
         }
+    }
 
-
+    public static void writeSession(final AsynchronousSocketChannel channel, final int sessionId) throws ExecutionException, InterruptedException {
+        ByteBuffer byteSessionId = ByteBuffer.wrap(ByteConvert.toBytes(sessionId));
+        while ((byteSessionId.hasRemaining())) {
+            channel.write(byteSessionId);
+        }
     }
 
     public static int readSessionId(final AsynchronousSocketChannel channel, final ByteBuffer sessionBuffer) throws ExecutionException, InterruptedException {
