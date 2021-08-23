@@ -7,14 +7,13 @@ import com.ocean.surf.core.util.ChannelHelper;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.Map;
-import java.util.Random;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Created by David on 2020/4/5.
  */
-public class MultiplexedConnection implements IConnection {
+public class MultiplexConnection implements IConnection {
     private final Map<Long, ConnectionContext> pool = new ConcurrentHashMap<>();
     private final Map<Integer, ConnectionContext> sessionPool = new ConcurrentHashMap<>();
     private final String serverAddress;
@@ -26,7 +25,7 @@ public class MultiplexedConnection implements IConnection {
     private AtomicInteger sessionSeed;
     private Integer maxSessionId;
 
-    public MultiplexedConnection(String serverAddress, int serverPort, int bufferSize, long timeoutMilliseconds) throws IOException, ExecutionException, InterruptedException {
+    public MultiplexConnection(String serverAddress, int serverPort, int bufferSize, long timeoutMilliseconds) throws IOException, ExecutionException, InterruptedException {
         this.serverAddress = serverAddress;
         this.serverPort = serverPort;
         this.bufferSize = bufferSize;
@@ -46,7 +45,7 @@ public class MultiplexedConnection implements IConnection {
     @Override
     public void connect() throws ExecutionException, InterruptedException, IOException {
         client = Client.open(serverAddress, serverPort, bufferSize);
-        int seed = client.connect();
+        int seed = client.multiplexConnect();
         sessionSeed = new AtomicInteger(seed);
         maxSessionId = seed + ChannelHelper.SESSION_AMOUNT_PER_CONN;
         readThread.start();
@@ -72,7 +71,7 @@ public class MultiplexedConnection implements IConnection {
             pool.put(tid, context);
             sessionPool.put(context.sessionId, context);
         }
-        client.multiplexedWrite(context.sessionId, data);
+        client.multiplexWrite(context.sessionId, data);
         context.available.acquire();
         return context.buffer;
     }
@@ -97,7 +96,7 @@ public class MultiplexedConnection implements IConnection {
             }
             ConnectionContext context = sessionPool.get(sessionId);
             ByteBuffer dataBuffer = context.buffer;
-            client.multiplexedRead(headBuffer, dataBuffer);
+            client.multiplexRead(headBuffer, dataBuffer);
             if(end) {
                 dataBuffer.flip();
                 context.available.release();

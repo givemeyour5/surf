@@ -1,6 +1,6 @@
 package com.ocean.surf.soa;
 
-import com.ocean.surf.server.MultiplexedServer;
+import com.ocean.surf.server.MultiplexServer;
 import com.ocean.surf.soa.core.*;
 
 import java.io.IOException;
@@ -12,14 +12,14 @@ import java.util.Map;
 /**
  * Created by David on 2020/4/5.
  */
-public class MultiplexedSoaServer<T> extends MultiplexedServer {
+public class MultiplexSoaServer<T> extends MultiplexServer {
     private T instance;
 
     private final Map<String, Method> methodMap = new HashMap<>();
     private final static ThreadLocal<ISerialize<Object>> Serializer = new ThreadLocal<>();
 
 
-    public MultiplexedSoaServer(int port, int bufferSize, int threadCount, int queueSize) throws Exception {
+    public MultiplexSoaServer(int port, int bufferSize, int threadCount, int queueSize) throws Exception {
         super(port, bufferSize, threadCount, queueSize);
     }
 

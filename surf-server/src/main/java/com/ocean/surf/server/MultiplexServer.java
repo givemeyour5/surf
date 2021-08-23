@@ -18,7 +18,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 /**
  * Created by David on 2020/4/5.
  */
-public class MultiplexedServer extends AbstractServer {
+public class MultiplexServer extends AbstractServer {
     private AsynchronousServerSocketChannel serverChannel;
     private int bufferSize = 1024 * 1024;
     private int port = 30000;
@@ -31,10 +31,10 @@ public class MultiplexedServer extends AbstractServer {
     private final Map<SocketAddress, Integer> connSessionSeeds = new ConcurrentHashMap<>();
 
 
-    protected MultiplexedServer() throws IOException {
+    protected MultiplexServer() throws IOException {
     }
 
-    protected MultiplexedServer(int port, int bufferSize, int threadCount, int queueSize) throws IOException {
+    protected MultiplexServer(int port, int bufferSize, int threadCount, int queueSize) throws IOException {
         this.port = port;
         this.bufferSize = bufferSize;
         this.threadCount = threadCount;
@@ -145,7 +145,7 @@ public class MultiplexedServer extends AbstractServer {
                         sessionPool.put(sessionId, dataBuffer);
                     }
                     final ByteBuffer processBuffer = dataBuffer;
-                    ChannelHelper.multiplexedRead(channel, headBuffer, dataBuffer);
+                    ChannelHelper.multiplexRead(channel, headBuffer, dataBuffer);
                     if(end) {
                         processBuffer.flip();
                         final int sid = sessionId;
@@ -155,7 +155,7 @@ public class MultiplexedServer extends AbstractServer {
                                 final ByteBuffer writeData = process(processBuffer);
                                 processBuffer.clear();
                                 try {
-                                    ChannelHelper.multiplexedWrite(sid, channel, writeData.array());
+                                    ChannelHelper.multiplexWrite(sid, channel, writeData.array());
                                 } catch (Throwable e) {
                                     e.printStackTrace();
                                     ChannelHelper.close(channel);

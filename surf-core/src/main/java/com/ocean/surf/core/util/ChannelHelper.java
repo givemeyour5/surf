@@ -212,7 +212,7 @@ public class ChannelHelper {
     }
 
 
-    public static void multiplexedWrite(final int sessionId, final AsynchronousSocketChannel channel, final byte[] data) throws ExecutionException, InterruptedException {
+    public static void multiplexWrite(final int sessionId, final AsynchronousSocketChannel channel, final byte[] data) throws ExecutionException, InterruptedException {
 
         if(data == null) {
             throw new NullPointerException("data can't be null");
@@ -285,7 +285,7 @@ public class ChannelHelper {
         return sessionId;
     }
 
-    public static void multiplexedRead(final AsynchronousSocketChannel channel, final ByteBuffer headBuffer, final ByteBuffer dataBuffer) throws ExecutionException, InterruptedException {
+    public static void multiplexRead(final AsynchronousSocketChannel channel, final ByteBuffer headBuffer, final ByteBuffer dataBuffer) throws ExecutionException, InterruptedException {
 
         if(headBuffer == null || dataBuffer == null){
             throw new NullPointerException("buffer can't be null");

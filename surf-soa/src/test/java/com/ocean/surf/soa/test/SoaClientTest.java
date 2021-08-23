@@ -24,7 +24,7 @@ public class SoaClientTest {
         config.setBufferSize(1024*1024);
         config.setTimeoutMilliseconds(60000);
 //        final ISoaService client = SoaClientFactory.Create(ISoaService.class, config);
-        final ISoaService client = SoaClientFactory.CreateMultiplexed(ISoaService.class, config);
+        final ISoaService client = SoaClientFactory.CreateMultiplex(ISoaService.class, config);
 
 
         final AtomicInteger count = new AtomicInteger(0);
@@ -38,7 +38,7 @@ public class SoaClientTest {
                     } catch (InterruptedException e) {
                         e.printStackTrace();
                     }
-                        System.out.println("qps : " + count);
+                        System.out.println("tps : " + count);
                     count.set(0);
                 }
             }

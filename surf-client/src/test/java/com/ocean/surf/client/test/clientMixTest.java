@@ -32,7 +32,7 @@ public class clientMixTest {
                     } catch (InterruptedException e) {
                         e.printStackTrace();
                     }
-                    System.out.println("qps : " + count);
+                    System.out.println("tps : " + count);
                     count.set(0);
                 }
             }

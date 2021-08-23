@@ -1,15 +1,15 @@
 package com.ocean.surf.soa.test;
 
-import com.ocean.surf.soa.MultiplexedSoaServer;
+import com.ocean.surf.soa.MultiplexSoaServer;
 import org.junit.Test;
 
 /**
  * Created by David on 2020/4/5.
  */
-public class MultiplexedSoaServerTest {
+public class MultiplexSoaServerTest {
     @Test
     public void test() throws Exception {
-        MultiplexedSoaServer server = new MultiplexedSoaServer<>(30000, 1024 * 1024, 8, 20000);
+        MultiplexSoaServer server = new MultiplexSoaServer<>(30000, 1024 * 1024, 8, 20000);
         server.bind(SoaService.class);
         server.start();
         System.in.read();

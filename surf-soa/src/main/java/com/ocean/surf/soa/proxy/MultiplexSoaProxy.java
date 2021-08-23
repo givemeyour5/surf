@@ -1,7 +1,6 @@
 package com.ocean.surf.soa.proxy;
 
-import com.ocean.surf.client.Connection;
-import com.ocean.surf.client.MultiplexedConnection;
+import com.ocean.surf.client.MultiplexConnection;
 import com.ocean.surf.core.client.IConnection;
 import com.ocean.surf.soa.core.*;
 
@@ -15,14 +14,14 @@ import java.util.concurrent.ExecutionException;
 /**
  * Created by David on 2020/4/5.
  */
-public class MultiplexedSoaProxy<T> implements InvocationHandler {
+public class MultiplexSoaProxy<T> implements InvocationHandler {
 
     private final IConnection connection;
     private final static ThreadLocal<ISerialize<Object>> Serializer = new ThreadLocal<>();
 
 
-    public MultiplexedSoaProxy(int poolSize, String address, int port, int bufferSize, long timeoutMilliseconds) throws IOException, ExecutionException, InterruptedException {
-        connection = new MultiplexedConnection(address, port, bufferSize, timeoutMilliseconds);
+    public MultiplexSoaProxy(int poolSize, String address, int port, int bufferSize, long timeoutMilliseconds) throws IOException, ExecutionException, InterruptedException {
+        connection = new MultiplexConnection(address, port, bufferSize, timeoutMilliseconds);
         connection.connect();
     }
 

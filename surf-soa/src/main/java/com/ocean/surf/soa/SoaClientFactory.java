@@ -2,7 +2,7 @@ package com.ocean.surf.soa;
 
 import com.ocean.surf.soa.core.ClientConfig;
 import com.ocean.surf.soa.proxy.DefaultSoaProxy;
-import com.ocean.surf.soa.proxy.MultiplexedSoaProxy;
+import com.ocean.surf.soa.proxy.MultiplexSoaProxy;
 
 import java.io.IOException;
 import java.util.concurrent.ExecutionException;
@@ -17,8 +17,8 @@ public class SoaClientFactory {
                 config.getServerPort(), config.getBufferSize(), config.getTimeoutMilliseconds()).bind(clazz);
     }
 
-    public static <T> T CreateMultiplexed(Class<T> clazz, ClientConfig config) throws InterruptedException, ExecutionException, IOException {
-        return new MultiplexedSoaProxy<T>(config.getPoolSize(), config.getAddress(),
+    public static <T> T CreateMultiplex(Class<T> clazz, ClientConfig config) throws InterruptedException, ExecutionException, IOException {
+        return new MultiplexSoaProxy<T>(config.getPoolSize(), config.getAddress(),
                 config.getServerPort(), config.getBufferSize(), config.getTimeoutMilliseconds()).bind(clazz);
     }
 }

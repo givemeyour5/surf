@@ -1,19 +1,14 @@
 package com.ocean.surf.client;
 
-import com.ocean.surf.core.util.ByteConvert;
 import com.ocean.surf.core.util.ChannelHelper;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
-import java.net.SocketOption;
 import java.net.StandardSocketOptions;
-import java.nio.BufferOverflowException;
 import java.nio.ByteBuffer;
 import java.nio.channels.AsynchronousChannelGroup;
 import java.nio.channels.AsynchronousSocketChannel;
-import java.nio.channels.CompletionHandler;
 import java.util.concurrent.*;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Created by david on 17/5/8.
@@ -43,7 +38,14 @@ public class Client extends AbstractClient {
 
 
     @Override
-    public int connect() throws ExecutionException, InterruptedException, IOException {
+    public void connect() throws ExecutionException, InterruptedException, IOException {
+        channel.connect(remoteAddress).get();
+        ByteBuffer receive = read();
+        System.out.println(new String(receive.array(), receive.position(), receive.remaining()));
+    }
+
+    @Override
+    public int multiplexConnect() throws ExecutionException, InterruptedException, IOException {
         channel.connect(remoteAddress).get();
         ByteBuffer sessionBuffer = ByteBuffer.allocate(ChannelHelper.SESSION_SIZE);
         int sessionSeed = readSessionId(sessionBuffer);
@@ -90,8 +92,8 @@ public class Client extends AbstractClient {
     }
 
     @Override
-    public void multiplexedWrite(int sessionId, byte[] data) throws ExecutionException, InterruptedException {
-        ChannelHelper.multiplexedWrite(sessionId, channel, data);
+    public void multiplexWrite(int sessionId, byte[] data) throws ExecutionException, InterruptedException {
+        ChannelHelper.multiplexWrite(sessionId, channel, data);
     }
 
     @Override
@@ -100,8 +102,8 @@ public class Client extends AbstractClient {
     }
 
     @Override
-    public void multiplexedRead(ByteBuffer headBuffer, ByteBuffer dataBuffer) throws ExecutionException, InterruptedException, IOException {
-        ChannelHelper.multiplexedRead(channel, headBuffer, dataBuffer);
+    public void multiplexRead(ByteBuffer headBuffer, ByteBuffer dataBuffer) throws ExecutionException, InterruptedException, IOException {
+        ChannelHelper.multiplexRead(channel, headBuffer, dataBuffer);
     }
 
     public ByteBuffer getBuffer() {
