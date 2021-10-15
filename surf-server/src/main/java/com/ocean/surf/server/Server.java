@@ -73,7 +73,6 @@ public class Server extends AbstractServer {
                     return;
                 } catch (InterruptedException e) {
                     e.printStackTrace();
-                    ChannelHelper.close(channel);
                     return;
                 }
                 handle(result);

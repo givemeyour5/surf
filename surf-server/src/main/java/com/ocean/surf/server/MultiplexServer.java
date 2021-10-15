@@ -77,7 +77,7 @@ public class MultiplexServer extends AbstractServer {
                     handle(channel);
                 } catch (Exception e) {
                     e.printStackTrace();
-                    ChannelHelper.close(serverChannel);
+//                    ChannelHelper.close(serverChannel);
                     return;
                 }
             }

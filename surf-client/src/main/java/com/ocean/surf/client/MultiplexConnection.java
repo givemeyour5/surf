@@ -95,11 +95,13 @@ public class MultiplexConnection implements IConnection {
                 sessionId = Math.abs(sessionId);
             }
             ConnectionContext context = sessionPool.get(sessionId);
-            ByteBuffer dataBuffer = context.buffer;
-            client.multiplexRead(headBuffer, dataBuffer);
-            if(end) {
-                dataBuffer.flip();
-                context.available.release();
+            if(context != null) {
+                ByteBuffer dataBuffer = context.buffer;
+                client.multiplexRead(headBuffer, dataBuffer);
+                if(end) {
+                    dataBuffer.flip();
+                    context.available.release();
+                }
             }
         }
     }
