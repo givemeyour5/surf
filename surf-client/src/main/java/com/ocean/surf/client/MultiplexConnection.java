@@ -25,6 +25,9 @@ public class MultiplexConnection implements IConnection {
     private AtomicInteger sessionSeed;
     private Integer maxSessionId;
 
+    private ByteBuffer sessionBuffer = ByteBuffer.allocate(ChannelHelper.SESSION_SIZE);
+    private ByteBuffer headBuffer = ByteBuffer.allocate(ChannelHelper.HEAD_SIZE);
+
     public MultiplexConnection(String serverAddress, int serverPort, int bufferSize, long timeoutMilliseconds) throws IOException, ExecutionException, InterruptedException {
         this.serverAddress = serverAddress;
         this.serverPort = serverPort;
@@ -85,8 +88,6 @@ public class MultiplexConnection implements IConnection {
     }
 
     private void read() throws ExecutionException, InterruptedException, IOException {
-        ByteBuffer sessionBuffer = ByteBuffer.allocate(ChannelHelper.SESSION_SIZE);
-        ByteBuffer headBuffer = ByteBuffer.allocate(ChannelHelper.HEAD_SIZE);
         while (true) {
             int sessionId = client.readSessionId(sessionBuffer);
             boolean end = false;
@@ -110,6 +111,7 @@ public class MultiplexConnection implements IConnection {
         private Semaphore available = new Semaphore(0, false);
         private ByteBuffer buffer;
         private int sessionId;
+
         public ConnectionContext(int sessionId, int bufferSize) {
             this.sessionId = sessionId;
             buffer = ByteBuffer.allocate(bufferSize);

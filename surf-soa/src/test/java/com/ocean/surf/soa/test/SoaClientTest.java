@@ -27,7 +27,7 @@ public class SoaClientTest {
         final ISoaService client = SoaClientFactory.CreateMultiplex(ISoaService.class, config);
 
 
-        final AtomicInteger count = new AtomicInteger(0);
+        final AtomicInteger totalCount = new AtomicInteger(0);
 
         final Thread thread = new Thread(new Runnable() {
             @Override
@@ -38,8 +38,8 @@ public class SoaClientTest {
                     } catch (InterruptedException e) {
                         e.printStackTrace();
                     }
-                        System.out.println("tps : " + count);
-                    count.set(0);
+                        System.out.println("tps : " + totalCount);
+                    totalCount.set(0);
                 }
             }
         });
@@ -51,11 +51,11 @@ public class SoaClientTest {
         tmp.put(1, 1);
         p2.put("a", tmp);
         p2.put("b", tmp);
-        Map dd = new HashMap<String, Object>();
-        dd.put("aaaa","dfdfdfd");
-        dd.put("bbb","dfdfdfd");
-        dd.put("ccccc","dfdfdfd");
-        p2.put("c", dd);
+        Map subParm = new HashMap<String, Object>();
+        subParm.put("key1","value1");
+        subParm.put("key2","value2");
+        subParm.put("key3","value3");
+        p2.put("c", subParm);
 
         final Thread thread1 = new Thread(new Runnable() {
             @Override
@@ -66,8 +66,7 @@ public class SoaClientTest {
 //                  System.out.println(String.format("old: %d,  new: %d", index+1, ret));
                     Assert.assertEquals(index+1, ret);
                     ++index;
-                    count.incrementAndGet();
-
+                    totalCount.incrementAndGet();
                 }
             }
         });
@@ -81,7 +80,7 @@ public class SoaClientTest {
                     int ret = client.call(index, p2);
                     Assert.assertEquals(index+1, ret);
 //                    ++index;
-                    count.incrementAndGet();
+                    totalCount.incrementAndGet();
 //            System.out.println(String.format("old: %d,  new: %d", index++, ret));
                 }
             }
@@ -96,7 +95,7 @@ public class SoaClientTest {
                     int ret = client.call(index, p2);
                     Assert.assertEquals(index+1, ret);
                     ++index;
-                    count.incrementAndGet();
+                    totalCount.incrementAndGet();
 //            System.out.println(String.format("old: %d,  new: %d", index++, ret));
                 }
             }
@@ -111,7 +110,7 @@ public class SoaClientTest {
                     int ret = client.call(index, p2);
                     Assert.assertEquals(index+1, ret);
                     ++index;
-                    count.incrementAndGet();
+                    totalCount.incrementAndGet();
 //            System.out.println(String.format("old: %d,  new: %d", index++, ret));
                 }
             }
@@ -126,7 +125,7 @@ public class SoaClientTest {
                     int ret = client.call(index, p2);
                     Assert.assertEquals(index+1, ret);
                     ++index;
-                    count.incrementAndGet();
+                    totalCount.incrementAndGet();
 //            System.out.println(String.format("old: %d,  new: %d", index++, ret));
                 }
             }
@@ -141,7 +140,7 @@ public class SoaClientTest {
                     int ret = client.call(index, p2);
                     Assert.assertEquals(index+1, ret);
                     ++index;
-                    count.incrementAndGet();
+                    totalCount.incrementAndGet();
 //            System.out.println(String.format("old: %d,  new: %d", index++, ret));
                 }
             }
