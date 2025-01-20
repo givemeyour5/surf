@@ -20,7 +20,7 @@ public class ChannelHelper {
     public final static int HEAD_SIZE = 4;
     public final static int SESSION_SIZE = 4;
     public final static int SESSION_AMOUNT_PER_CONN = 128;
-    private final static int BATCH_SIZE = 1024;
+    public final static int BATCH_SIZE = 1024;
 
     public static void read(final AsynchronousSocketChannel channel, final ByteBuffer buffer) throws ExecutionException, InterruptedException {
 
@@ -218,7 +218,7 @@ public class ChannelHelper {
             throw new NullPointerException("data can't be null");
         }
         int size = data.length;
-        int leftSize = size % BATCH_SIZE;
+        int lastSize = size % BATCH_SIZE;
         int batch = size / BATCH_SIZE;
         int i = 0;
 
@@ -229,7 +229,7 @@ public class ChannelHelper {
             ByteBuffer byteSize = ByteBuffer.wrap(ByteConvert.toBytes(BATCH_SIZE));
             int lastBatch = batch - 1;
             for(; i < batch; ++i) {
-                if(i == lastBatch && leftSize == 0) {
+                if(i == lastBatch && lastSize == 0) {
                     byteSessionId = ByteBuffer.wrap(ByteConvert.toBytes(-sessionId));
                 }
                 else {
@@ -250,11 +250,11 @@ public class ChannelHelper {
                 }
             }
         }
-        //write left data
-        if(leftSize > 0) {
+        //write last data
+        if(lastSize > 0) {
             byteSessionId = ByteBuffer.wrap(ByteConvert.toBytes(-sessionId));
-            ByteBuffer byteSize = ByteBuffer.wrap(ByteConvert.toBytes(leftSize));
-            ByteBuffer batchData = ByteBuffer.wrap(data, i * BATCH_SIZE, leftSize);
+            ByteBuffer byteSize = ByteBuffer.wrap(ByteConvert.toBytes(lastSize));
+            ByteBuffer batchData = ByteBuffer.wrap(data, i * BATCH_SIZE, lastSize);
             synchronized (channel) {
                 while (byteSessionId.hasRemaining()) {
                     channel.write(byteSessionId).get();
@@ -270,52 +270,72 @@ public class ChannelHelper {
     }*/
 
     public static void multiplexWrite(final int sessionId, final AsynchronousSocketChannel channel, final byte[] data) throws ExecutionException, InterruptedException {
+        //len(sessionId) + len(headSize) = 8 bytes
+//        ByteBuffer writeBuf = ByteBuffer.allocate(8 + BATCH_SIZE);
+        ByteBuffer writeBuf = getWriteBuf();
+        multiplexWrite(sessionId, channel, data, writeBuf);
+    }
+
+    private final static ThreadLocal<ByteBuffer> WriteBuf = new ThreadLocal<>();
+
+    private static ByteBuffer getWriteBuf() {
+        ByteBuffer buf = WriteBuf.get();
+        if(buf == null) {
+            buf = ByteBuffer.allocate(8 + BATCH_SIZE);
+            WriteBuf.set(buf);
+        }
+        return buf;
+    }
+
+    public static void multiplexWrite(final int sessionId, final AsynchronousSocketChannel channel, final byte[] data, final ByteBuffer writeBuf) throws ExecutionException, InterruptedException {
 
         if(data == null) {
             throw new NullPointerException("data can't be null");
         }
         int size = data.length;
-        int leftSize = size % BATCH_SIZE;
+        int lastSize = size % BATCH_SIZE;
         int batch = size / BATCH_SIZE;
         int i = 0;
 
-        //len(sessionId) + len(headSize) = 8 bytes
-        ByteBuffer writeBuf = ByteBuffer.allocate(8 + BATCH_SIZE);
-
-        byte[] byteSessionId = ByteConvert.toBytes(sessionId);
-        writeBuf.put(byteSessionId);
         if(batch > 0) {
+            byte[] byteSessionId = ByteConvert.toBytes(sessionId);
+            writeBuf.put(byteSessionId);
             byte[] byteSize = ByteConvert.toBytes(BATCH_SIZE);
             writeBuf.put(byteSize);
             int lastBatch = batch - 1;
             for(; i < batch; ++i) {
-                if(i == lastBatch && leftSize == 0) {
+                if(i == lastBatch && lastSize == 0) {
                     byteSessionId = ByteConvert.toBytes(-sessionId);
                     writeBuf.position(0);
                     writeBuf.put(byteSessionId);
                 }
                 writeBuf.position(8);
                 writeBuf.put(data, i * BATCH_SIZE, BATCH_SIZE);
-                writeBuf.position(0);
+//                writeBuf.position(0);
+                writeBuf.flip();
                 synchronized (channel) {
-                    channel.write(writeBuf).get();
-
+                    while (writeBuf.hasRemaining()) {
+                        channel.write(writeBuf).get();
+                    }
                 }
             }
         }
-        //write left data
-        if(leftSize > 0) {
-            byteSessionId = ByteConvert.toBytes(-sessionId);
+        //write last data
+        if(lastSize > 0) {
+            byte[] byteSessionId = ByteConvert.toBytes(-sessionId);
             writeBuf.position(0);
             writeBuf.put(byteSessionId);
-            byte[] byteSize = ByteConvert.toBytes(leftSize);
+            byte[] byteSize = ByteConvert.toBytes(lastSize);
             writeBuf.put(byteSize);
-            writeBuf.put(data, i * BATCH_SIZE, leftSize);
+            writeBuf.put(data, i * BATCH_SIZE, lastSize);
             writeBuf.flip();
             synchronized (channel) {
-                channel.write(writeBuf).get();
+                while (writeBuf.hasRemaining()) {
+                    channel.write(writeBuf).get();
+                }
             }
         }
+        writeBuf.clear();
     }
 
     public static void writeSession(final AsynchronousSocketChannel channel, final int sessionId) throws ExecutionException, InterruptedException {
@@ -337,6 +357,15 @@ public class ChannelHelper {
         return sessionId;
     }
 
+    public static int readSessionId(final ByteBuffer sessionBuffer) throws ExecutionException, InterruptedException {
+        if(sessionBuffer == null || sessionBuffer.hasRemaining()){
+            throw new NullPointerException("buffer can't be null");
+        }
+        int sessionId = ByteConvert.toInt32(sessionBuffer.array());
+        sessionBuffer.flip();
+        return sessionId;
+    }
+
     public static void multiplexRead(final AsynchronousSocketChannel channel, final ByteBuffer headBuffer, final ByteBuffer dataBuffer) throws ExecutionException, InterruptedException {
 
         if(headBuffer == null || dataBuffer == null){
@@ -350,10 +379,12 @@ public class ChannelHelper {
         headBuffer.flip();
 
         if(size > dataBuffer.remaining()) {
+            System.out.println("size " + size + ", remain " + dataBuffer.remaining());
             throw new BufferOverflowException();
         }
-        int pos = dataBuffer.position();
-        while(size > (dataBuffer.position() - pos)) {
+
+        dataBuffer.limit(dataBuffer.position() + size);
+        while(dataBuffer.hasRemaining()) {
             channel.read(dataBuffer).get();
         }
     }

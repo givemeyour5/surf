@@ -28,6 +28,7 @@ public class SoaClientTest {
 
 
         final AtomicInteger totalCount = new AtomicInteger(0);
+        final Map<String, AtomicInteger> threadCount = new HashMap<>();
 
         final Thread thread = new Thread(new Runnable() {
             @Override
@@ -40,6 +41,11 @@ public class SoaClientTest {
                     }
                         System.out.println("tps : " + totalCount);
                     totalCount.set(0);
+
+                    for(Map.Entry<String, AtomicInteger> entry : threadCount.entrySet()) {
+                        System.out.println(String.format("thread %s tps : %s", entry.getKey(), entry.getValue()));
+                        entry.getValue().set(0);
+                    }
                 }
             }
         });
@@ -57,16 +63,17 @@ public class SoaClientTest {
         subParm.put("key3","value3");
         p2.put("c", subParm);
 
+
         final Thread thread1 = new Thread(new Runnable() {
             @Override
             public void run() {
                 int index = 0;
                 while (true) {
                     int ret = client.call(index, p2);
-//                  System.out.println(String.format("old: %d,  new: %d", index+1, ret));
                     Assert.assertEquals(index+1, ret);
                     ++index;
                     totalCount.incrementAndGet();
+                    countThread(threadCount, "thread1");
                 }
             }
         });
@@ -81,7 +88,7 @@ public class SoaClientTest {
                     Assert.assertEquals(index+1, ret);
 //                    ++index;
                     totalCount.incrementAndGet();
-//            System.out.println(String.format("old: %d,  new: %d", index++, ret));
+                    countThread(threadCount, "thread2");
                 }
             }
         });
@@ -96,7 +103,7 @@ public class SoaClientTest {
                     Assert.assertEquals(index+1, ret);
                     ++index;
                     totalCount.incrementAndGet();
-//            System.out.println(String.format("old: %d,  new: %d", index++, ret));
+                    countThread(threadCount, "thread3");
                 }
             }
         });
@@ -111,7 +118,7 @@ public class SoaClientTest {
                     Assert.assertEquals(index+1, ret);
                     ++index;
                     totalCount.incrementAndGet();
-//            System.out.println(String.format("old: %d,  new: %d", index++, ret));
+                    countThread(threadCount, "thread4");
                 }
             }
         });
@@ -126,7 +133,7 @@ public class SoaClientTest {
                     Assert.assertEquals(index+1, ret);
                     ++index;
                     totalCount.incrementAndGet();
-//            System.out.println(String.format("old: %d,  new: %d", index++, ret));
+                    countThread(threadCount, "thread5");
                 }
             }
         });
@@ -141,7 +148,7 @@ public class SoaClientTest {
                     Assert.assertEquals(index+1, ret);
                     ++index;
                     totalCount.incrementAndGet();
-//            System.out.println(String.format("old: %d,  new: %d", index++, ret));
+                    countThread(threadCount, "thread6");
                 }
             }
         });
@@ -150,6 +157,15 @@ public class SoaClientTest {
 
         thread.join();
 
+    }
+
+    private void countThread (Map<String, AtomicInteger> threadCount, String name) {
+        AtomicInteger tCount = threadCount.get(name);
+        if(tCount == null) {
+            tCount = new AtomicInteger(0);
+        }
+        tCount.incrementAndGet();
+        threadCount.put(name, tCount);
     }
 
 }

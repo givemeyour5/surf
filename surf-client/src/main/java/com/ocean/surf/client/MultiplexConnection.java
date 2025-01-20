@@ -74,7 +74,7 @@ public class MultiplexConnection implements IConnection {
             pool.put(tid, context);
             sessionPool.put(context.sessionId, context);
         }
-        client.multiplexWrite(context.sessionId, data);
+        client.multiplexWrite(context.sessionId, data, context.writeBuf);
         context.available.acquire();
         return context.buffer;
     }
@@ -103,14 +103,19 @@ public class MultiplexConnection implements IConnection {
                     dataBuffer.flip();
                     context.available.release();
                 }
+                else {
+                    dataBuffer.limit(dataBuffer.capacity());
+                }
             }
         }
     }
 
     private class ConnectionContext {
-        private Semaphore available = new Semaphore(0, false);
-        private ByteBuffer buffer;
+        private volatile Semaphore available = new Semaphore(0, false);
+        private volatile ByteBuffer buffer;
         private int sessionId;
+        //len(sessionId) + len(headSize) = 8 bytes
+        private volatile ByteBuffer writeBuf = ByteBuffer.allocate(8 + ChannelHelper.BATCH_SIZE);
 
         public ConnectionContext(int sessionId, int bufferSize) {
             this.sessionId = sessionId;

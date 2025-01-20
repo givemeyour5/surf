@@ -9,7 +9,7 @@ import org.junit.Test;
 public class MultiplexSoaServerTest {
     @Test
     public void test() throws Exception {
-        MultiplexSoaServer server = new MultiplexSoaServer<>(30000, 1024 * 1024, 8, 20000);
+        MultiplexSoaServer server = new MultiplexSoaServer<>(30000, 1024 * 1024, 4, 20000);
         server.bind(SoaService.class);
         server.start();
         System.in.read();
