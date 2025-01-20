@@ -92,8 +92,8 @@ public class Client extends AbstractClient {
     }
 
     @Override
-    public void multiplexWrite(int sessionId, byte[] data) throws ExecutionException, InterruptedException {
-        ChannelHelper.multiplexWrite(sessionId, channel, data);
+    public void multiplexWrite(int sessionId, byte[] data, ByteBuffer writeBuf) throws ExecutionException, InterruptedException {
+        ChannelHelper.multiplexWrite(sessionId, channel, data, writeBuf);
     }
 
     @Override

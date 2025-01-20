@@ -24,12 +24,17 @@ public class MultiplexServer extends AbstractServer {
     private int port = 30000;
     private int threadCount = 8;
     private int queueSize = 20000;
-    private final Map<Integer, ByteBuffer> sessionPool = new ConcurrentHashMap<>();
+    private final Map<Integer, BufContext> sessionPool = new ConcurrentHashMap<>();
     private final Executor executor = new ThreadPoolExecutor(threadCount, threadCount, 1, TimeUnit.MINUTES, new ArrayBlockingQueue<Runnable>(queueSize));
     private final AtomicInteger sessionSeed = new AtomicInteger(1);
     private final Queue<Integer> sessionSeedRecycle = new ConcurrentLinkedQueue<>();
     private final Map<SocketAddress, Integer> connSessionSeeds = new ConcurrentHashMap<>();
 
+    private class BufContext {
+        private volatile ByteBuffer dataBuffer = ByteBuffer.allocate(bufferSize);
+        //len(sessionId) + len(headSize) = 8 bytes
+        private volatile ByteBuffer writeBuf = ByteBuffer.allocate(8 + ChannelHelper.BATCH_SIZE);
+    }
 
     protected MultiplexServer() throws IOException {
     }
@@ -45,7 +50,7 @@ public class MultiplexServer extends AbstractServer {
         super.address = new InetSocketAddress(port);
         this.bufferSize += ChannelHelper.HEAD_SIZE;
         serverChannel = AsynchronousServerSocketChannel.open(AsynchronousChannelGroup.withThreadPool(
-                new ThreadPoolExecutor(1, 1, 1, TimeUnit.MINUTES, new ArrayBlockingQueue<Runnable>(queueSize))
+                new ThreadPoolExecutor(1, 1, 1, TimeUnit.MINUTES, new ArrayBlockingQueue<Runnable>(queueSize), new ThreadPoolExecutor.CallerRunsPolicy())
         ));
         //        channel.setOption(StandardSocketOptions.SO_RCVBUF, 1024 * 1024);
         //        channel.setOption(StandardSocketOptions.SO_RCVBUF, 1024 * 1024);
@@ -133,27 +138,29 @@ public class MultiplexServer extends AbstractServer {
                     return;
                 }
                 try {
-                    int sessionId = ChannelHelper.readSessionId(channel, sessionBuffer);
+                    int sessionId = ChannelHelper.readSessionId(sessionBuffer);
                     boolean end = false;
                     if(sessionId < 0) {
                         end = true;
                         sessionId = Math.abs(sessionId);
                     }
-                    ByteBuffer dataBuffer = sessionPool.get(sessionId);
-                    if(dataBuffer == null) {
-                        dataBuffer = ByteBuffer.allocate(bufferSize);
-                        sessionPool.put(sessionId, dataBuffer);
+                    BufContext bufContext = sessionPool.get(sessionId);
+                    if(bufContext == null) {
+                        bufContext = new BufContext();
+                        sessionPool.put(sessionId, bufContext);
                     }
-                    final ByteBuffer processBuffer = dataBuffer;
-                    ChannelHelper.multiplexRead(channel, headBuffer, dataBuffer);
+                    final ByteBuffer shadowDataBuf = bufContext.dataBuffer;
+                    ChannelHelper.multiplexRead(channel, headBuffer, shadowDataBuf);
                     if(end) {
-                        processBuffer.flip();
+                        shadowDataBuf.flip();
                         final int sid = sessionId;
+//                        System.out.println("session " + sid);
+                        final ByteBuffer shadowWriteBuf = bufContext.writeBuf;
                         executor.execute(new Runnable() {
                             @Override
                             public void run() {
-                                final ByteBuffer writeData = process(processBuffer);
-                                processBuffer.clear();
+                                final ByteBuffer writeData = process(shadowDataBuf);
+                                shadowDataBuf.clear();
                                 try {
                                     ChannelHelper.multiplexWrite(sid, channel, writeData.array());
                                 } catch (Throwable e) {
@@ -162,6 +169,9 @@ public class MultiplexServer extends AbstractServer {
                                 }
                             }
                         });
+                    }
+                    else {
+                        shadowDataBuf.limit(shadowDataBuf.capacity());
                     }
                 } catch (Throwable e) {
                     e.printStackTrace();
@@ -176,6 +186,7 @@ public class MultiplexServer extends AbstractServer {
             public void failed(Throwable exc, Object attachment) {
                 System.out.println("handle failed");
                 try {
+                    clearSession(channel.getRemoteAddress());
                     System.out.println(channel.getRemoteAddress() + " lost");
                 } catch (IOException e) {
                     e.printStackTrace();
