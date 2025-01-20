@@ -25,7 +25,7 @@ public class MultiplexServer extends AbstractServer {
     private int threadCount = 8;
     private int queueSize = 20000;
     private final Map<Integer, BufContext> sessionPool = new ConcurrentHashMap<>();
-    private final Executor executor = new ThreadPoolExecutor(threadCount, threadCount, 1, TimeUnit.MINUTES, new ArrayBlockingQueue<Runnable>(queueSize));
+    private final Executor executor = new ThreadPoolExecutor(threadCount, threadCount, 1, TimeUnit.MINUTES, new ArrayBlockingQueue<Runnable>(queueSize), new ThreadPoolExecutor.CallerRunsPolicy());
     private final AtomicInteger sessionSeed = new AtomicInteger(1);
     private final Queue<Integer> sessionSeedRecycle = new ConcurrentLinkedQueue<>();
     private final Map<SocketAddress, Integer> connSessionSeeds = new ConcurrentHashMap<>();
@@ -50,7 +50,7 @@ public class MultiplexServer extends AbstractServer {
         super.address = new InetSocketAddress(port);
         this.bufferSize += ChannelHelper.HEAD_SIZE;
         serverChannel = AsynchronousServerSocketChannel.open(AsynchronousChannelGroup.withThreadPool(
-                new ThreadPoolExecutor(1, 1, 1, TimeUnit.MINUTES, new ArrayBlockingQueue<Runnable>(queueSize), new ThreadPoolExecutor.CallerRunsPolicy())
+                new ThreadPoolExecutor(1, 8, 1, TimeUnit.MINUTES, new ArrayBlockingQueue<Runnable>(queueSize), new ThreadPoolExecutor.CallerRunsPolicy())
         ));
         //        channel.setOption(StandardSocketOptions.SO_RCVBUF, 1024 * 1024);
         //        channel.setOption(StandardSocketOptions.SO_RCVBUF, 1024 * 1024);
@@ -155,7 +155,7 @@ public class MultiplexServer extends AbstractServer {
                         shadowDataBuf.flip();
                         final int sid = sessionId;
 //                        System.out.println("session " + sid);
-                        final ByteBuffer shadowWriteBuf = bufContext.writeBuf;
+//                        final ByteBuffer shadowWriteBuf = bufContext.writeBuf;
                         executor.execute(new Runnable() {
                             @Override
                             public void run() {
